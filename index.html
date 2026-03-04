@@ -2,36 +2,230 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DBK BARCOD</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DBK Barcode Scanner</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
   <style>
-    body, html {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      overflow: hidden; /* ป้องกันการสกอลล์ซ้ำซ้อนภายนอก */
+    /* --- Base Style --- */
+    * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+    body { margin: 0; font-family: 'Kanit', sans-serif; height: 100vh; background: #ffffff; overflow: hidden; }
+    
+    /* --- Loader --- */
+    #custom-loader {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(255,255,255,0.9); z-index: 10000;
+      flex-direction: column; align-items: center; justify-content: center;
     }
-    .container {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+    .spinner {
+      width: 45px; height: 45px; border: 4px solid #f3f3f3;
+      border-top: 4px solid #000; border-radius: 50%;
+      animation: spin 0.8s linear infinite;
     }
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* --- Login UI --- */
+    #login-page {
+      position: fixed; top:0; left:0; width:100%; height:100%; 
+      background: #ffffff; z-index: 9999; display: flex; 
+      flex-direction: column; align-items: center; justify-content: center; padding: 40px;
     }
+    .login-box { width: 100%; max-width: 320px; text-align: center; }
+    .logo-circle {
+      width: 70px; height: 70px; background: #000; border-radius: 22px;
+      margin: 0 auto 25px; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    .logo-circle svg { width: 35px; fill: #fff; }
+    .login-box h1 { font-weight: 600; font-size: 1.7rem; margin-bottom: 5px; color: #1a1a1a; }
+    .login-box p { color: #888; margin-bottom: 30px; font-size: 0.9rem; }
+    
+    input { 
+      width: 100%; padding: 18px; margin-bottom: 12px; border-radius: 16px;
+      border: 1px solid #f0f0f0; background: #f9f9f9; font-family: 'Kanit'; font-size: 1rem;
+    }
+    input:focus { background: #fff; border-color: #000; }
+    
+    #btn-login { 
+      width: 100%; padding: 18px; background: #000; color: #fff; 
+      border: none; border-radius: 16px; font-weight: 600; font-size: 1.1rem;
+      cursor: pointer; margin-top: 10px;
+    }
+
+    /* --- App UI --- */
+    #main-app { display: none; flex-direction: column; height: 100vh; background: #000; }
+    #camera-section { height: 35vh; background: #000; position: relative; overflow: hidden; }
+    #reader { width: 100% !important; height: 100% !important; }
+    #reader video { object-fit: cover !important; width: 100% !important; height: 100% !important; }
+    .laser-line { position: absolute; top: 50%; left: 5%; width: 90%; height: 2px; background: #ff0000; box-shadow: 0 0 10px #ff0000; z-index: 100; pointer-events: none; transform: translateY(-50%); }
+    
+    #list-section { 
+      flex: 1; background: #fdfdfd; border-top-left-radius: 35px; border-top-right-radius: 35px; 
+      padding: 25px; overflow-y: auto; z-index: 10; box-shadow: 0 -10px 30px rgba(0,0,0,0.2); 
+    }
+    .item-card { 
+      background: #ffffff; padding: 20px; margin-bottom: 15px; border-radius: 22px; 
+      display: flex; justify-content: space-between; align-items: center; 
+      border: 1px solid #f5f5f5; border-left: 10px solid #2ecc71;
+      animation: slideIn 0.3s ease-out;
+    }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .info b { font-size: 1.3rem; color: #1a1a1a; display: block; }
+    .btn-del { background: #fff0f0; color: #ff4d4d; border: none; padding: 12px 15px; border-radius: 14px; font-weight: 600; }
+
+    #reader__dashboard_section_csr, #reader__status_span, #reader__header_message { display: none !important; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <iframe 
-      src="https://script.google.com/macros/s/AKfycbwTdFR7gKL2uQUfsuNJI73rCOnNnwZAOsbIlAA1bePFju_0qCZhCrGRhHc6HY3k_i6R/exec" 
-      allow="geolocation; microphone; camera" 
-      sandbox="allow-scripts allow-same-origin allow-forms">
-    </iframe>
+
+<div id="custom-loader">
+  <div class="spinner"></div>
+  <p style="margin-top: 15px; font-weight: 400; color: #000;">กำลังบันทึกข้อมูล...</p>
+</div>
+
+<div id="login-page">
+  <div class="login-box">
+    <div class="logo-circle">
+      <svg viewBox="0 0 24 24"><path d="M4,6H6V18H4V6M7,6H8V18H7V6M9,6H12V18H9V6M13,6H14V18H13V6M16,6H18V18H16V6M19,6H20V18H19V6M21,6H22V18H21V6Z"/></svg>
+    </div>
+    <h1>Barcode Scanner</h1>
+    <input type="text" id="user" placeholder="Username" autocomplete="off">
+    <input type="password" id="pass" placeholder="Password">
+    <button id="btn-login" onclick="handleLogin()">เข้าสู่ระบบ</button>
   </div>
+</div>
+
+<div id="main-app">
+  <div id="camera-section">
+    <div id="reader"></div>
+    <div class="laser-line"></div>
+  </div>
+  <div id="list-section">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+      <h2 style="margin:0; font-size:0.9rem; color:#888;">ผู้บันทึก: <span id="user-display" style="color:#000; font-weight:600;">-</span></h2>
+      <span id="counter" style="background:#000; color:#fff; padding:6px 18px; border-radius:20px; font-weight:bold;">0</span>
+    </div>
+    <div id="scanned-list"></div>
+  </div>
+</div>
+
+<script>
+  // !!! ใส่ URL ของ Web App ที่ได้จาก Google Apps Script ที่นี่ !!!
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNnFepSei8yD1OeEDqdk0yy2WM3QOCG_Q0obLktRfS5NvgRe3_8zpXxXgDaj5yYHso/exec"; 
+
+  let currentUser = "";
+  let count = 0;
+  let isScanning = false;
+  const html5QrCode = new Html5Qrcode("reader");
+
+  // ฟังก์ชันสื่อสารกับ Google Sheets
+  async function callApi(payload) {
+    try {
+      const response = await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      return await response.json();
+    } catch (error) {
+      console.error("API Error:", error);
+      Swal.fire('เชื่อมต่อไม่ได้', 'กรุณาตรวจสอบอินเทอร์เน็ตหรือ URL ของคุณ', 'error');
+      return null;
+    }
+  }
+
+  async function handleLogin() {
+    const u = document.getElementById('user').value;
+    const p = document.getElementById('pass').value;
+    if(!u || !p) return Swal.fire('คำเตือน', 'กรุณากรอกข้อมูลให้ครบ', 'warning');
+    
+    document.getElementById('custom-loader').style.display = 'flex';
+    const res = await callApi({ action: 'checkLogin', user: u, pass: p });
+    document.getElementById('custom-loader').style.display = 'none';
+
+    if (res && res.success) {
+      currentUser = res.displayName;
+      document.getElementById('user-display').innerText = currentUser;
+      showApp();
+    } else {
+      Swal.fire('ล้มเหลว', res ? res.msg : 'เซิร์ฟเวอร์ไม่ตอบสนอง', 'error');
+    }
+  }
+
+  function showApp() {
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('main-app').style.display = 'flex';
+    startScanner();
+  }
+
+  function startScanner() {
+    const config = { fps: 20, qrbox: { width: 250, height: 120 }, aspectRatio: 1.0 };
+    html5QrCode.start({ facingMode: "environment" }, config, (text) => {
+      if (!isScanning) {
+        onSuccess(text);
+      }
+    }).catch(err => {
+      Swal.fire('กล้องถูกปิดกั้น', 'กรุณากดอนุญาตสิทธิ์กล้องใน Browser', 'error');
+    });
+  }
+
+  async function onSuccess(barcode) {
+    isScanning = true; // หยุดรับภาพชั่วคราวขณะบันทึก
+    document.getElementById('custom-loader').style.display = 'flex';
+    
+    // ส่งข้อมูลไปบันทึก
+    const res = await callApi({ action: 'saveBarcode', barcode: barcode, currentUser: currentUser });
+    
+    document.getElementById('custom-loader').style.display = 'none';
+    if (res) {
+      updateUI(res);
+      // หน่วงเวลา 1 วินาที เพื่อไม่ให้สแกนซ้ำตัวเดิมทันที
+      setTimeout(() => { isScanning = false; }, 1000);
+    } else {
+      isScanning = false;
+    }
+  }
+
+  function updateUI(data) {
+    const list = document.getElementById('scanned-list');
+    const div = document.createElement('div');
+    div.className = 'item-card';
+    div.id = data.id;
+    div.innerHTML = `
+      <div class="info">
+        <b>${data.barcode}</b>
+        <p style="margin:5px 0 0; color:#888; font-size:0.8rem;">🕒 ${data.time}</p>
+      </div>
+      <button class="btn-del" onclick="del('${data.id}')">ลบ</button>
+    `;
+    list.insertBefore(div, list.firstChild);
+    count++;
+    document.getElementById('counter').innerText = count;
+  }
+
+  async function del(id) {
+    const confirm = await Swal.fire({
+      title: 'ลบรายการ?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'ลบออก',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#000'
+    });
+
+    if (confirm.isConfirmed) {
+      document.getElementById('custom-loader').style.display = 'flex';
+      const success = await callApi({ action: 'deleteRowById', id: id });
+      document.getElementById('custom-loader').style.display = 'none';
+      
+      if(success) {
+        const el = document.getElementById(id);
+        el.style.transform = "translateX(100%)";
+        el.style.opacity = "0";
+        setTimeout(() => { el.remove(); count--; document.getElementById('counter').innerText = count; }, 300);
+      }
+    }
+  }
+</script>
 </body>
 </html>
