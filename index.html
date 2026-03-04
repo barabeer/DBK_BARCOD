@@ -129,41 +129,52 @@
   async function handleLogin() {
     const u = document.getElementById('user').value;
     const p = document.getElementById('pass').value;
-    if(!u || !p) return Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ครบ', text: 'กรุณากรอก User และ Pass', confirmButtonColor: '#000' });
+    
+    if(!u || !p) {
+      return Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ครบ', text: 'กรุณากรอก User และ Pass' });
+    }
     
     document.getElementById('custom-loader').style.display = 'flex';
-    const res = await callApi({ action: 'checkLogin', user: u, pass: p });
-    document.getElementById('custom-loader').style.display = 'none';
-
-    if (!res) {
-      return Swal.fire({ icon: 'error', title: 'การเชื่อมต่อผิดพลาด', text: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้', confirmButtonColor: '#d33' });
-    }
-
-    if (res.success) {
-      currentUser = res.displayName;
-      localStorage.setItem('loggedUser', currentUser);
-      updateSessionTime();
-      document.getElementById('user-display').innerText = currentUser;
+    
+    try {
+      const res = await callApi({ action: 'checkLogin', user: u, pass: p });
+      console.log("Server Response:", res); // ดูค่าที่ตอบกลับมาใน Console
       
-      await Swal.fire({
-        icon: 'success',
-        title: 'สำเร็จ!',
-        text: 'ยินดีต้อนรับ ' + currentUser,
-        timer: 1500,
-        showConfirmButton: false,
-        timerProgressBar: true
-      });
-      showApp();
-    } else {
-      Swal.fire({
-        icon: 'error',
-        title: 'เข้าสู่ระบบล้มเหลว',
-        text: res.msg,
-        confirmButtonColor: '#d33'
-      });
+      document.getElementById('custom-loader').style.display = 'none';
+
+      if (!res) {
+        Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'เซิร์ฟเวอร์ส่งค่าว่างกลับมา' });
+        return;
+      }
+
+      if (res.success === true) {
+        currentUser = res.displayName;
+        localStorage.setItem('loggedUser', currentUser);
+        updateSessionTime();
+        document.getElementById('user-display').innerText = currentUser;
+        
+        await Swal.fire({
+          icon: 'success',
+          title: 'สำเร็จ!',
+          text: 'ยินดีต้อนรับ ' + currentUser,
+          timer: 1500,
+          showConfirmButton: false
+        });
+        showApp();
+      } else {
+        // จุดสำคัญ: บังคับให้แสดง msg ที่ส่งมาจาก echo
+        Swal.fire({
+          icon: 'error',
+          title: 'เข้าสู่ระบบล้มเหลว',
+          text: res.msg || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
+          confirmButtonColor: '#d33'
+        });
+      }
+    } catch (err) {
+      document.getElementById('custom-loader').style.display = 'none';
+      Swal.fire({ icon: 'error', title: 'Error', text: err.message });
     }
   }
-
   function showApp() {
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('main-app').style.display = 'flex';
