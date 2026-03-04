@@ -120,9 +120,15 @@
 
   async function callApi(payload) {
     try {
-      const response = await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(payload) });
-      return await response.json();
-    } catch (e) { return null; }
+      const response = await fetch(SCRIPT_URL, { 
+        method: "POST", 
+        body: JSON.stringify(payload) 
+      });
+      const data = await response.json(); // ต้องมีบรรทัดนี้เพื่อแปลง JSON เป็น Object
+      return data;
+    } catch (e) { 
+      return null; 
+    }
   }
 
   // --- ปรับปรุง Login พร้อมอนิเมชั่นและบอกเหตุผล ---
