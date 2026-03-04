@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>DBK Barcode Scanner</title>
+  <title>DBK Barcode Scanner Pro</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
   <style>
+    /* --- Base Style --- */
     * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
     body { margin: 0; font-family: 'Kanit', sans-serif; height: 100vh; background: #ffffff; overflow: hidden; }
     
+    /* --- Loader --- */
     #custom-loader {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(255,255,255,0.9); z-index: 10000;
@@ -19,13 +21,18 @@
     .spinner { width: 45px; height: 45px; border: 4px solid #f3f3f3; border-top: 4px solid #000; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
+    /* --- Login UI --- */
     #login-page { position: fixed; top:0; left:0; width:100%; height:100%; background: #ffffff; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; }
     .login-box { width: 100%; max-width: 320px; text-align: center; }
     .logo-circle { width: 70px; height: 70px; background: #000; border-radius: 22px; margin: 0 auto 25px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
     .logo-circle svg { width: 35px; fill: #fff; }
+    .login-box h1 { font-weight: 600; font-size: 1.7rem; margin-bottom: 5px; color: #1a1a1a; }
+    
     input { width: 100%; padding: 18px; margin-bottom: 12px; border-radius: 16px; border: 1px solid #f0f0f0; background: #f9f9f9; font-family: 'Kanit'; font-size: 1rem; }
+    input:focus { background: #fff; border-color: #000; }
     #btn-login { width: 100%; padding: 18px; background: #000; color: #fff; border: none; border-radius: 16px; font-weight: 600; font-size: 1.1rem; cursor: pointer; }
 
+    /* --- App UI --- */
     #main-app { display: none; flex-direction: column; height: 100vh; background: #000; }
     #camera-section { height: 35vh; background: #000; position: relative; overflow: hidden; }
     #reader { width: 100% !important; height: 100% !important; }
@@ -33,8 +40,11 @@
     .laser-line { position: absolute; top: 50%; left: 5%; width: 90%; height: 2px; background: #ff0000; box-shadow: 0 0 10px #ff0000; z-index: 100; pointer-events: none; transform: translateY(-50%); }
     
     #list-section { flex: 1; background: #fdfdfd; border-top-left-radius: 35px; border-top-right-radius: 35px; padding: 25px; overflow-y: auto; z-index: 10; box-shadow: 0 -10px 30px rgba(0,0,0,0.2); }
-    .item-card { background: #ffffff; padding: 20px; margin-bottom: 15px; border-radius: 22px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #f5f5f5; border-left: 10px solid #2ecc71; }
+    .item-card { background: #ffffff; padding: 20px; margin-bottom: 15px; border-radius: 22px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #f5f5f5; border-left: 10px solid #2ecc71; animation: slideIn 0.3s ease-out; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .btn-del { background: #fff0f0; color: #ff4d4d; border: none; padding: 12px 15px; border-radius: 14px; font-weight: 600; }
+
+    /* ซ่อนส่วนเกินของ Library */
     #reader__dashboard_section_csr, #reader__status_span, #reader__header_message { display: none !important; }
   </style>
 </head>
@@ -45,28 +55,32 @@
 <div id="login-page">
   <div class="login-box">
     <div class="logo-circle"><svg viewBox="0 0 24 24"><path d="M4,6H6V18H4V6M7,6H8V18H7V6M9,6H12V18H9V6M13,6H14V18H13V6M16,6H18V18H16V6M19,6H20V18H19V6M21,6H22V18H21V6Z"/></svg></div>
-    <h1>เข้าสู่ระบบ</h1>
-    <input type="text" id="user" placeholder="Username" autocomplete="off">
-    <input type="password" id="pass" placeholder="Password">
+    <h1>Barcode Scanner</h1>
+    <input type="text" id="user" placeholder="ชื่อผู้ใช้งาน" autocomplete="off">
+    <input type="password" id="pass" placeholder="รหัสผ่าน">
     <button id="btn-login" onclick="handleLogin()">เข้าสู่ระบบ</button>
   </div>
 </div>
 
 <div id="main-app">
-  <div id="camera-section"><div id="reader"></div><div class="laser-line"></div></div>
+  <div id="camera-section">
+    <div id="reader"></div>
+    <div class="laser-line"></div>
+  </div>
   <div id="list-section">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
       <h2 style="margin:0; font-size:0.9rem; color:#888;">ผู้บันทึก: <span id="user-display" style="color:#000;">-</span></h2>
       <span id="counter" style="background:#000; color:#fff; padding:6px 18px; border-radius:20px; font-weight:bold;">0</span>
     </div>
     <div id="scanned-list"></div>
+    <button onclick="logout()" style="width:100%; padding:15px; margin-top:20px; background:none; border:1px solid #ddd; border-radius:15px; color:#888; font-family:'Kanit';">ออกจากระบบ</button>
   </div>
 </div>
 
 <script>
-  // 1. เปลี่ยน URL ตรงนี้
+  // 1. ตั้งค่า URL ของคุณ
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby3jHNKOeCQZwGJBue2-Hs3Kxw9pDd7gCSJioCWqhmETtWzBJawsbNQ8ouGu9yOyMPE/exec"; 
-  const SESSION_DURATION = 30 * 60 * 1000; 
+  const SESSION_DURATION = 30 * 60 * 1000; // 30 นาที
 
   let currentUser = "";
   let count = 0;
@@ -76,7 +90,7 @@
   let matchCount = 0;
   const html5QrCode = new Html5Qrcode("reader");
 
-  // 2. ระบบ Session 30 นาที
+  // 2. ระบบตรวจสอบ Session เมื่อเปิดเว็บ (แก้ไขเพื่อหยุด Infinite Loop)
   window.onload = function() {
     const savedUser = localStorage.getItem('loggedUser');
     const lastActive = localStorage.getItem('lastActiveTime');
@@ -88,24 +102,36 @@
       showApp();
       updateSessionTime();
     } else {
-      logout();
+      // ไม่ต้องสั่ง reload ให้สลับหน้าจอไปหน้า Login แทน
+      localStorage.clear();
+      document.getElementById('login-page').style.display = 'flex';
+      document.getElementById('main-app').style.display = 'none';
     }
   };
 
+  // 3. ฟังก์ชันจัดการ Session
   function updateSessionTime() {
+    if (!currentUser) return;
     localStorage.setItem('lastActiveTime', new Date().getTime());
     clearTimeout(timeoutHandler);
     timeoutHandler = setTimeout(() => {
-      Swal.fire('หมดเวลาใช้งาน', 'กรุณาเข้าสู่ระบบใหม่เพื่อความปลอดภัย', 'info').then(logout);
+      Swal.fire({ title: 'หมดเวลาใช้งาน', text: 'กรุณาเข้าสู่ระบบใหม่', icon: 'info' }).then(logout);
     }, SESSION_DURATION);
   }
 
   function logout() {
     localStorage.clear();
-    location.reload();
+    currentUser = "";
+    document.getElementById('main-app').style.display = 'none';
+    document.getElementById('login-page').style.display = 'flex';
+    if (html5QrCode.isScanning) {
+      html5QrCode.stop().catch(() => {});
+    }
   }
 
-  window.onclick = updateSessionTime;
+  // ต่อเวลาเมื่อมีการแตะหน้าจอ
+  window.addEventListener('click', updateSessionTime);
+  window.addEventListener('touchstart', updateSessionTime);
 
   async function callApi(payload) {
     try {
@@ -114,7 +140,7 @@
     } catch (e) { return null; }
   }
 
-  // 3. ปรับปรุง Logic Login
+  // 4. ระบบ Login
   async function handleLogin() {
     const u = document.getElementById('user').value;
     const p = document.getElementById('pass').value;
@@ -132,7 +158,7 @@
       await Swal.fire({ icon: 'success', title: 'สำเร็จ', text: 'ยินดีต้อนรับ ' + currentUser, timer: 1500, showConfirmButton: false });
       showApp();
     } else {
-      Swal.fire('เข้าสู่ระบบไม่สำเร็จ', res ? res.msg : 'ข้อมูลไม่ถูกต้อง', 'error');
+      Swal.fire('ล้มเหลว', res ? res.msg : 'ข้อมูลไม่ถูกต้อง', 'error');
     }
   }
 
@@ -146,14 +172,14 @@
     const config = { fps: 15, qrbox: { width: 250, height: 120 }, aspectRatio: 1.0 };
     html5QrCode.start({ facingMode: "environment" }, config, (text) => {
       if (!isScanning) onSuccess(text);
-    }).catch(() => Swal.fire('Error', 'ไม่สามารถเปิดกล้องได้', 'error'));
+    }).catch(() => Swal.fire('Error', 'ไม่สามารถเข้าถึงกล้องได้', 'error'));
   }
 
-  // 4. ระบบกันข้อมูลเพี้ยน (Double Check)
+  // 5. ระบบสแกน (Double Check กันเพี้ยน)
   async function onSuccess(barcode) {
     if (barcode === lastResult) { matchCount++; } else { lastResult = barcode; matchCount = 0; return; }
 
-    if (matchCount >= 1) { // ต้องอ่านค่าเดิมซ้ำกัน 2 ครั้งติดกัน
+    if (matchCount >= 1) { // ต้องอ่านได้ค่าเดิมซ้ำกัน 2 ครั้ง
       isScanning = true;
       matchCount = 0; lastResult = "";
       document.getElementById('custom-loader').style.display = 'flex';
@@ -175,7 +201,7 @@
   }
 
   async function del(id) {
-    const confirm = await Swal.fire({ title: 'ลบรายการนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#000' });
+    const confirm = await Swal.fire({ title: 'ลบรายการ?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#000' });
     if (confirm.isConfirmed) {
       document.getElementById('custom-loader').style.display = 'flex';
       const success = await callApi({ action: 'deleteRowById', id: id });
