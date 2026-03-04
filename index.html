@@ -159,30 +159,52 @@
   }
 
   function startScanner() {
-    const config = { fps: 20, qrbox: { width: 250, height: 120 }, aspectRatio: 1.0 };
+    // ระบุประเภทบาร์โค้ดที่ใช้งาน (เช่น Code 128, Code 39) จะช่วยให้แม่นยำขึ้นมาก
+    const config = { 
+      fps: 15, // ลดจาก 20-25 เหลือ 15 เพื่อให้ภาพแต่ละเฟรมชัดขึ้นก่อนประมวลผล
+      qrbox: { width: 250, height: 120 }, 
+      aspectRatio: 1.0,
+      // บังคับให้รองรับเฉพาะรูปแบบที่คุณใช้ (ตัวอย่างคือบาร์โค้ดทั่วไป)
+      formatsToSupport: [ 
+         Html5QrcodeSupportedFormats.CODE_128,
+         Html5QrcodeSupportedFormats.CODE_39,
+         Html5QrcodeSupportedFormats.QR_CODE 
+      ]
+    };
+  
     html5QrCode.start({ facingMode: "environment" }, config, (text) => {
       if (!isScanning) {
-        onSuccess(text);
+        // ตรวจสอบเบื้องต้นว่าค่าที่ได้ไม่ใช่ขยะ (เช่น ต้องมีความยาว 5 ตัวขึ้นไป)
+        if (text.length >= 5) { 
+           onSuccess(text);
+        }
       }
     }).catch(err => {
-      Swal.fire('กล้องถูกปิดกั้น', 'กรุณากดอนุญาตสิทธิ์กล้องใน Browser', 'error');
+      console.error(err);
     });
   }
 
-  async function onSuccess(barcode) {
-    isScanning = true; // หยุดรับภาพชั่วคราวขณะบันทึก
-    document.getElementById('custom-loader').style.display = 'flex';
-    
-    // ส่งข้อมูลไปบันทึก
-    const res = await callApi({ action: 'saveBarcode', barcode: barcode, currentUser: currentUser });
-    
-    document.getElementById('custom-loader').style.display = 'none';
-    if (res) {
-      updateUI(res);
-      // หน่วงเวลา 1 วินาที เพื่อไม่ให้สแกนซ้ำตัวเดิมทันที
-      setTimeout(() => { isScanning = false; }, 1000);
+  let lastResult = "";
+  let countMatch = 0;
+
+  function onSuccess(barcode) {
+    // ถ้าค่าที่สแกนได้ใหม่ ตรงกับค่าที่สแกนได้เมื่อกี้
+    if (barcode === lastResult) {
+      countMatch++;
     } else {
-      isScanning = false;
+      lastResult = barcode;
+      countMatch = 0;
+      return; // ยังไม่ส่งข้อมูล ให้รอเฟรมถัดไปสแกนใหม่
+    }
+  
+    // ต้องสแกนได้ค่าเดิมซ้ำกัน 2-3 ครั้ง (เฟรม) ถึงจะบันทึก
+    if (countMatch >= 2) { 
+      isScanning = true;
+      countMatch = 0; // Reset
+      lastResult = ""; // Reset
+      
+      // บันทึกข้อมูล (โค้ดเดิมของคุณ)
+      saveDataToServer(barcode); 
     }
   }
 
